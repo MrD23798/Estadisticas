@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Eliminar líneas blancas y bordes en SVG */
+svg {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  vertical-align: top !important;
+}
+
+/* Asegurar que no haya espacios en blanco en los contenedores */
+.chart-container {
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  outline: none !important;
+}
+
+/* Eliminar cualquier línea blanca del body y elementos raíz */
+body {
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow-x: hidden !important;
+}
+
+#root {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Eliminar espacios en blanco específicos de elementos con fondo blanco */
+* {
+  box-sizing: border-box !important;
+}
+
+/* Forzar que no haya elementos con fondo blanco inesperado */
+div, section, main, article {
+  background-color: transparent !important;
+}
+
+/* Excepto elementos que específicamente necesitan fondo */
+.bg-white, .bg-slate-800, .bg-gradient-to-br {
+  background-color: initial !important;
+}
