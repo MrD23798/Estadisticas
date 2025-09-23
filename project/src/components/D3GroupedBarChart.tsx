@@ -1,12 +1,13 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useRef, useMemo, useState } from 'react';
 import * as d3 from 'd3';
 import { motion } from 'framer-motion';
 import { ComparisonData } from '../services/csvService';
+import { useTheme } from '../hooks/useTheme';
 
 interface D3GroupedBarChartProps {
   data: ComparisonData[];
-  month: string;
-  year: string;
+  month: number;
+  year: number;
   loading: boolean;
 }
 
@@ -17,6 +18,7 @@ const D3GroupedBarChart: React.FC<D3GroupedBarChartProps> = ({
   loading 
 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
+  const { isDark } = useTheme();
 
   // Configuración del gráfico
   const margin = useMemo(() => ({ top: 60, right: 60, bottom: 120, left: 80 }), []);
@@ -35,6 +37,11 @@ const D3GroupedBarChart: React.FC<D3GroupedBarChartProps> = ({
       data: data.filter(d => uniqueCategories.includes(d.category))
     };
   }, [data]);
+
+  // Colores adaptativos al tema
+  const textColor = isDark ? "rgba(255,255,255,0.9)" : "rgba(30,41,59,0.9)";
+  const titleColor = isDark ? "rgba(255,255,255,0.9)" : "rgba(15,23,42,0.95)";
+  const axisColor = isDark ? "rgba(255,255,255,0.8)" : "rgba(51,65,85,0.8)";
 
   useEffect(() => {
     if (!svgRef.current || loading || processedData.data.length === 0) return;

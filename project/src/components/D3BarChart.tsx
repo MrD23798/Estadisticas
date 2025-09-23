@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useMemo } from 'react';
 import * as d3 from 'd3';
 import { motion } from 'framer-motion';
 import { DependencyData } from '../services/csvService';
+import { useTheme } from '../hooks/useTheme';
 
 interface D3BarChartProps {
   data: DependencyData[];
@@ -19,6 +20,7 @@ const D3BarChart: React.FC<D3BarChartProps> = ({
   loading 
 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
+  const { isDark } = useTheme();
 
   // Configuración del gráfico responsivo
   const margin = useMemo(() => ({ top: 60, right: 60, bottom: 150, left: 80 }), []);
@@ -33,6 +35,11 @@ const D3BarChart: React.FC<D3BarChartProps> = ({
       .sort((a, b) => b.value - a.value)
       .slice(0, 10); // Mostrar solo top 10
   }, [data]);
+
+  // Colores adaptativos al tema
+  const textColor = isDark ? "rgba(255,255,255,0.9)" : "rgba(30,41,59,0.9)"; // slate-800 para modo claro
+  const titleColor = isDark ? "rgba(255,255,255,0.9)" : "rgba(15,23,42,0.95)"; // slate-900 para modo claro
+  const axisColor = isDark ? "rgba(255,255,255,0.8)" : "rgba(51,65,85,0.8)"; // slate-700 para modo claro
 
   useEffect(() => {
     if (!svgRef.current || loading || processedData.length === 0) return;
@@ -151,7 +158,7 @@ const D3BarChart: React.FC<D3BarChartProps> = ({
       .attr("text-anchor", "middle")
       .style("font-size", "13px")
       .style("font-weight", "bold")
-      .style("fill", "rgba(255,255,255,0.9)")
+      .style("fill", textColor)
       .style("opacity", 0)
       .text(d => d.value.toLocaleString());
 
@@ -174,7 +181,7 @@ const D3BarChart: React.FC<D3BarChartProps> = ({
       .attr("transform", `translate(0,${height})`)
       .call(xAxis)
       .selectAll("text")
-      .style("fill", "rgba(255,255,255,0.9)")
+      .style("fill", axisColor)
       .style("font-size", "12px")
       .style("font-weight", "500")
       .attr("transform", "rotate(-45)")
@@ -189,7 +196,7 @@ const D3BarChart: React.FC<D3BarChartProps> = ({
       .attr("class", "y-axis")
       .call(yAxis)
       .selectAll("text")
-      .style("fill", "rgba(255,255,255,0.8)")
+      .style("fill", axisColor)
       .style("font-size", "12px");
 
     // Título del gráfico
@@ -199,7 +206,7 @@ const D3BarChart: React.FC<D3BarChartProps> = ({
       .attr("text-anchor", "middle")
       .style("font-size", "18px")
       .style("font-weight", "bold")
-      .style("fill", "rgba(255,255,255,0.9)")
+      .style("fill", titleColor)
       .text(`${dependency} - ${month} ${year}`);
 
     // Label del eje Y
@@ -208,7 +215,7 @@ const D3BarChart: React.FC<D3BarChartProps> = ({
       .attr("y", margin.top - 10)
       .attr("text-anchor", "middle")
       .style("font-size", "14px")
-      .style("fill", "rgba(255,255,255,0.8)")
+      .style("fill", axisColor)
       .text("Cantidad de Casos");
 
     // Grid lines horizontales
@@ -229,7 +236,7 @@ const D3BarChart: React.FC<D3BarChartProps> = ({
       tooltip.remove();
     };
 
-  }, [processedData, dependency, month, year, loading, width, height, margin, baseWidth]);
+  }, [processedData, dependency, month, year, loading, width, height, margin, baseWidth, textColor, titleColor, axisColor]);
 
   if (loading) {
     return (

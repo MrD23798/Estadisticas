@@ -2,6 +2,53 @@
 
 Este proyecto es una aplicación web para visualizar estadísticas del Poder Judicial, permitiendo generar gráficos individuales y realizar comparativas entre diferentes dependencias.
 
+## 🐳 Ejecutar con Docker (Recomendado)
+
+### Desarrollo con Docker
+
+Para ejecutar el proyecto en modo desarrollo con hot reload:
+
+```bash
+# Construir y ejecutar con docker-compose
+docker-compose up app-dev
+
+# O construir y ejecutar manualmente
+docker build -f Dockerfile.dev -t estadisticas-dev .
+docker run -p 5173:5173 -v "$(pwd):/app" -v /app/node_modules estadisticas-dev
+```
+
+La aplicación estará disponible en: http://localhost:5173
+
+### Producción con Docker
+
+Para ejecutar en modo producción:
+
+```bash
+# Usando docker-compose con perfil de producción
+docker-compose --profile production up app-prod
+
+# O construir y ejecutar manualmente
+docker build -t estadisticas-prod .
+docker run -p 80:80 estadisticas-prod
+```
+
+La aplicación estará disponible en: http://localhost
+
+### Comandos útiles de Docker
+
+```bash
+# Ver logs del contenedor
+docker-compose logs app-dev
+
+# Ejecutar comandos dentro del contenedor
+docker-compose exec app-dev npm install nueva-dependencia
+
+# Limpiar imágenes y contenedores
+docker-compose down --rmi all --volumes --remove-orphans
+```
+
+## 💻 Instalación Local (Alternativa)
+
 ## Pasos para crear esta página manualmente
 
 ### 1. Configuración inicial del proyecto

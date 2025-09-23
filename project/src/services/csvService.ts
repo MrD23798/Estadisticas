@@ -372,10 +372,37 @@ export const fetchDependencies = async (): Promise<string[]> => {
       console.log('No se encontraron dependencias en ningún archivo');
     }
     
-    // Convertir Set a Array y ordenar
+    // Convertir Set a Array y ordenar de forma inteligente
     const uniqueDependencies = Array.from(allDependencies)
       .filter(dep => dep && dep.length > 0)
-      .sort();
+      .sort((a, b) => {
+        // Función de ordenamiento personalizada para manejar números correctamente
+        // Extraer números del texto para comparación numérica
+        const getNumber = (str: string) => {
+          const match = str.match(/(\d+)/);
+          return match ? parseInt(match[1], 10) : 0;
+        };
+        
+        // Si ambos son del mismo tipo (CAMARA vs JUZGADO), ordenar por número
+        const aType = a.includes('CAMARA') ? 'CAMARA' : 'JUZGADO';
+        const bType = b.includes('CAMARA') ? 'CAMARA' : 'JUZGADO';
+        
+        if (aType !== bType) {
+          // CAMARA primero, luego JUZGADO
+          return aType === 'CAMARA' ? -1 : 1;
+        }
+        
+        // Mismo tipo, ordenar por número
+        const aNum = getNumber(a);
+        const bNum = getNumber(b);
+        
+        if (aNum !== bNum) {
+          return aNum - bNum;
+        }
+        
+        // Si tienen el mismo número, ordenar alfabéticamente
+        return a.localeCompare(b);
+      });
     
     console.log(`Total de dependencias encontradas: ${uniqueDependencies.length}`, uniqueDependencies);
     return uniqueDependencies;
