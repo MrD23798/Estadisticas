@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { TrendingUp, ChevronDown, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { EvolutionFilters } from '../types';
+import DarkSelect from './DarkSelect';
 
 interface EvolutionPanelProps {
   dependencies: string[];
@@ -87,85 +88,83 @@ const EvolutionPanel: React.FC<EvolutionPanelProps> = ({
             
             <div className="mb-4">
               <label className="block text-slate-700 dark:text-slate-300 font-medium mb-2">Dependencia</label>
-              <select 
+              <DarkSelect
                 value={filters.evolutionDependency}
-                onChange={(e) => handleDependencyChange(e.target.value)}
-                className="w-full p-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400 transition-all"
-              >
-                <option value="">Seleccione una dependencia</option>
-                {dependencies.map(dep => (
-                  <option key={dep} value={dep}>{dep}</option>
-                ))}
-              </select>
+                onChange={(value) => handleDependencyChange(value)}
+                options={[
+                  { value: '', label: 'Seleccione una dependencia' },
+                  ...dependencies.map(dep => ({ value: dep, label: dep }))
+                ]}
+                placeholder=""
+                className="focus:ring-purple-500 dark:focus:ring-purple-400"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div>
                 <label className="block text-slate-700 dark:text-slate-300 font-medium mb-2">Mes Inicial</label>
-                <select 
+                <DarkSelect
                   value={filters.evolutionStartMonth}
-                  onChange={(e) => onFiltersChange({
+                  onChange={(value) => onFiltersChange({
                     ...filters,
-                    evolutionStartMonth: e.target.value
+                    evolutionStartMonth: value
                   })}
-                  className="w-full p-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400 transition-all text-sm"
-                >
-                  <option value="">Inicial</option>
-                  {months.map(month => (
-                    <option key={month} value={month}>{month}</option>
-                  ))}
-                </select>
+                  options={[
+                    { value: '', label: 'Inicial' },
+                    ...months.map(month => ({ value: month, label: month }))
+                  ]}
+                  placeholder=""
+                  className="focus:ring-purple-500 dark:focus:ring-purple-400 text-sm"
+                />
               </div>
 
               <div>
                 <label className="block text-slate-700 dark:text-slate-300 font-medium mb-2">Mes Final</label>
-                <select 
+                <DarkSelect
                   value={filters.evolutionEndMonth}
-                  onChange={(e) => onFiltersChange({
+                  onChange={(value) => onFiltersChange({
                     ...filters,
-                    evolutionEndMonth: e.target.value
+                    evolutionEndMonth: value
                   })}
-                  className="w-full p-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400 transition-all text-sm"
-                >
-                  <option value="">Final</option>
-                  {months.map(month => (
-                    <option key={month} value={month}>{month}</option>
-                  ))}
-                </select>
+                  options={[
+                    { value: '', label: 'Final' },
+                    ...months.map(month => ({ value: month, label: month }))
+                  ]}
+                  placeholder=""
+                  className="focus:ring-purple-500 dark:focus:ring-purple-400 text-sm"
+                />
               </div>
             </div>
 
             <div className="mb-4">
               <label className="block text-slate-700 dark:text-slate-300 font-medium mb-2">Año</label>
-              <select 
+              <DarkSelect
                 value={filters.evolutionYear}
-                onChange={(e) => onFiltersChange({
+                onChange={(value) => onFiltersChange({
                   ...filters,
-                  evolutionYear: e.target.value
+                  evolutionYear: value
                 })}
-                className="w-full p-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400 transition-all"
-              >
-                <option value="">Seleccione un año</option>
-                {years.map(year => (
-                  <option key={year} value={year}>{year}</option>
-                ))}
-              </select>
+                options={[
+                  { value: '', label: 'Seleccione un año' },
+                  ...years.map(year => ({ value: year, label: year }))
+                ]}
+                placeholder=""
+                className="focus:ring-purple-500 dark:focus:ring-purple-400"
+              />
             </div>
 
             <div className="mb-4">
               <label className="block text-slate-700 dark:text-slate-300 font-medium mb-2">Tipo de Objeto</label>
-              <select 
+              <DarkSelect
                 value={filters.evolutionObjectType}
-                onChange={(e) => onFiltersChange({
+                onChange={(value) => onFiltersChange({
                   ...filters,
-                  evolutionObjectType: e.target.value
+                  evolutionObjectType: value
                 })}
-                className="w-full p-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400 transition-all"
-              >
-                {availableObjectTypes.map(type => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
+                options={availableObjectTypes.map(type => ({ value: type, label: type }))}
+                placeholder=""
+                className="focus:ring-purple-500 dark:focus:ring-purple-400"
+              />
             </div>
 
             <motion.button 

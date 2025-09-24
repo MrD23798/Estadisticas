@@ -70,3 +70,46 @@ div, section, main, article {
 .bg-white, .bg-slate-800, .bg-gradient-to-br {
   background-color: initial !important;
 }
+
+/* Estilos específicos para select en modo oscuro */
+.dark select {
+  background-color: #374151 !important;
+  color: #f9fafb !important;
+  border-color: #4b5563 !important;
+}
+
+.dark select:focus {
+  background-color: #374151 !important;
+  color: #f9fafb !important;
+  border-color: #3b82f6 !important;
+}
+
+.dark option {
+  background-color: #374151 !important;
+  color: #f9fafb !important;
+  border: none !important;
+}
+
+/* Forzar estilos para navegadores WebKit (Chrome, Safari, Edge) */
+.dark select {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23f9fafb' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E") !important;
+  background-position: right 12px center !important;
+  background-repeat: no-repeat !important;
+  background-size: 16px 16px !important;
+  padding-right: 40px !important;
+}
+
+/* Para Firefox */
+@-moz-document url-prefix() {
+  .dark select {
+    background-color: #374151 !important;
+    color: #f9fafb !important;
+  }
+  
+  .dark option {
+    background-color: #374151 !important;
+    color: #f9fafb !important;
+  }
+}

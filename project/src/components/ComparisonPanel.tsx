@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { LineChart, ChevronDown, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ComparisonFilters } from '../types';
+import DarkSelect from './DarkSelect';
 
 interface ComparisonPanelProps {
   dependencies: string[];
@@ -118,36 +119,36 @@ const ComparisonPanel: React.FC<ComparisonPanelProps> = ({
 
             <div className="mb-4">
               <label className="block text-slate-700 dark:text-slate-300 font-medium mb-2">Mes</label>
-              <select 
+              <DarkSelect
                 value={filters.comparisonMonth}
-                onChange={(e) => onFiltersChange({
+                onChange={(value) => onFiltersChange({
                   ...filters,
-                  comparisonMonth: e.target.value
+                  comparisonMonth: value
                 })}
-                className="w-full p-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 transition-all"
-              >
-                <option value="">Seleccione un mes</option>
-                {months.map(month => (
-                  <option key={month} value={month}>{month}</option>
-                ))}
-              </select>
+                options={[
+                  { value: '', label: 'Seleccione un mes' },
+                  ...months.map(month => ({ value: month, label: month }))
+                ]}
+                placeholder=""
+                className="focus:ring-indigo-500 dark:focus:ring-indigo-400"
+              />
             </div>
 
             <div className="mb-4">
               <label className="block text-slate-700 dark:text-slate-300 font-medium mb-2">Año</label>
-              <select 
+              <DarkSelect
                 value={filters.comparisonYear}
-                onChange={(e) => onFiltersChange({
+                onChange={(value) => onFiltersChange({
                   ...filters,
-                  comparisonYear: e.target.value
+                  comparisonYear: value
                 })}
-                className="w-full p-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 transition-all"
-              >
-                <option value="">Seleccione un año</option>
-                {years.map(year => (
-                  <option key={year} value={year}>{year}</option>
-                ))}
-              </select>
+                options={[
+                  { value: '', label: 'Seleccione un año' },
+                  ...years.map(year => ({ value: year, label: year }))
+                ]}
+                placeholder=""
+                className="focus:ring-indigo-500 dark:focus:ring-indigo-400"
+              />
             </div>
 
             <motion.button 

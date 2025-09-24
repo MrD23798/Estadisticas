@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { BarChart, ChevronDown, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { VisualizationFilters } from '../types';
+import DarkSelect from './DarkSelect';
 
 interface VisualizationPanelProps {
   dependencies: string[];
@@ -75,53 +76,50 @@ const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
             
             <div className="mb-4">
               <label className="block text-slate-700 dark:text-slate-300 font-medium mb-2">Dependencia</label>
-              <select 
+              <DarkSelect
                 value={filters.selectedDependency}
-                onChange={(e) => onFiltersChange({
+                onChange={(value) => onFiltersChange({
                   ...filters,
-                  selectedDependency: e.target.value
+                  selectedDependency: value
                 })}
-                className="w-full p-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-all"
-              >
-                <option value="">Seleccione una dependencia</option>
-                {dependencies.map(dep => (
-                  <option key={dep} value={dep}>{dep}</option>
-                ))}
-              </select>
+                options={[
+                  { value: '', label: 'Seleccione una dependencia' },
+                  ...dependencies.map(dep => ({ value: dep, label: dep }))
+                ]}
+                placeholder=""
+              />
             </div>
 
             <div className="mb-4">
               <label className="block text-slate-700 dark:text-slate-300 font-medium mb-2">Mes</label>
-              <select 
+              <DarkSelect
                 value={filters.selectedMonth}
-                onChange={(e) => onFiltersChange({
+                onChange={(value) => onFiltersChange({
                   ...filters,
-                  selectedMonth: e.target.value
+                  selectedMonth: value
                 })}
-                className="w-full p-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-all"
-              >
-                <option value="">Seleccione un mes</option>
-                {months.map(month => (
-                  <option key={month} value={month}>{month}</option>
-                ))}
-              </select>
+                options={[
+                  { value: '', label: 'Seleccione un mes' },
+                  ...months.map(month => ({ value: month, label: month }))
+                ]}
+                placeholder=""
+              />
             </div>
 
             <div className="mb-4">
               <label className="block text-slate-700 dark:text-slate-300 font-medium mb-2">Año</label>
-              <select 
+              <DarkSelect
                 value={filters.selectedYear}
-                onChange={(e) => onFiltersChange({
+                onChange={(value) => onFiltersChange({
                   ...filters,
-                  selectedYear: e.target.value
+                  selectedYear: value
                 })}
-                className="w-full p-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-all"
-              >
-                <option value="">Seleccione un año</option>
-                {years.map(year => (
-                  <option key={year} value={year}>{year}</option>
-                ))}
-              </select>
+                options={[
+                  { value: '', label: 'Seleccione un año' },
+                  ...years.map(year => ({ value: year, label: year }))
+                ]}
+                placeholder=""
+              />
             </div>
 
             <motion.button 
