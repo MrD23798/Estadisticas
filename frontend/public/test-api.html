@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prueba de API - Estadísticas</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      background-color: white;
+      padding: 20px;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 10px;
+    }
+    .section {
+      margin-bottom: 30px;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background-color: #fafafa;
+    }
+    .section h2 {
+      margin-top: 0;
+      color: #444;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 14px;
+      margin: 4px 2px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    select, input {
+      padding: 8px;
+      margin: 5px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      width: 200px;
+    }
+    .result {
+      margin-top: 15px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background-color: #f9f9f9;
+      min-height: 100px;
+      max-height: 300px;
+      overflow: auto;
+    }
+    .success {
+      color: green;
+    }
+    .error {
+      color: red;
+    }
+    .loading {
+      color: blue;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Prueba de API - Estadísticas</h1>
+    
+    <!-- Test Health -->
+    <div class="section">
+      <h2>Verificar disponibilidad de la API</h2>
+      <button id="checkHealth">Verificar API</button>
+      <div id="healthResult" class="result"></div>
+    </div>
+
+    <!-- Test Períodos Disponibles -->
+    <div class="section">
+      <h2>Obtener períodos disponibles</h2>
+      <button id="getPeriodos">Cargar Períodos</button>
+      <div id="periodosResult" class="result"></div>
+    </div>
+
+    <!-- Test Dependencias Disponibles -->
+    <div class="section">
+      <h2>Obtener dependencias disponibles</h2>
+      <button id="getDependencias">Cargar Dependencias</button>
+      <div id="dependenciasResult" class="result"></div>
+    </div>
+
+    <!-- Test Categorías por Dependencia -->
+    <div class="section">
+      <h2>Consultar categorías por dependencia</h2>
+      <div>
+        <label>Dependencia:</label>
+        <select id="categoriaDependencia"></select>
+      </div>
+      <div>
+        <label>Período:</label>
+        <select id="categoriaPeriodo"></select>
+      </div>
+      <div>
+        <label>Buscar en Google Sheets:</label>
+        <input type="checkbox" id="categoriaGoogleSheets" checked>
+      </div>
+      <button id="getCategorias">Buscar Categorías</button>
+      <div id="categoriasResult" class="result"></div>
+    </div>
+
+    <!-- Test Comparar Dependencias -->
+    <div class="section">
+      <h2>Comparar dependencias</h2>
+      <div>
+        <label>Dependencias:</label>
+        <select id="comparacionDependencias" multiple size="5"></select>
+      </div>
+      <div>
+        <label>Período:</label>
+        <select id="comparacionPeriodo"></select>
+      </div>
+      <div>
+        <label>Buscar en Google Sheets:</label>
+        <input type="checkbox" id="comparacionGoogleSheets" checked>
+      </div>
+      <button id="getComparacion">Comparar</button>
+      <div id="comparacionResult" class="result"></div>
+    </div>
+  </div>
+
+  <script>
+    // Base URL para la API
+    const API_BASE_URL = 'http://localhost:3000';
+
+    // Función para mostrar resultados
+    function showResult(elementId, data, isError = false) {
+      const element = document.getElementById(elementId);
+      element.innerHTML = '';
+      
+      if (isError) {
+        element.classList.add('error');
+        element.classList.remove('success');
+        element.textContent = `Error: ${data.message || JSON.stringify(data)}`;
+      } else {
+        element.classList.add('success');
+        element.classList.remove('error');
+        element.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+      }
+    }
+
+    // Función para mostrar mensaje de carga
+    function showLoading(elementId) {
+      const element = document.getElementById(elementId);
+      element.classList.remove('success', 'error');
+      element.classList.add('loading');
+      element.textContent = 'Cargando...';
+    }
+
+    // Función para hacer peticiones a la API
+    async function fetchAPI(endpoint, method = 'GET', body = null) {
+      const options = {
+        method,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      };
+      
+      if (body) {
+        options.body = JSON.stringify(body);
+      }
+      
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw { status: response.status, message: data.message || 'Error en la petición' };
+      }
+      
+      return data;
+    }
+
+    // Verificar salud de la API
+    document.getElementById('checkHealth').addEventListener('click', async () => {
+      showLoading('healthResult');
+      try {
+        const data = await fetchAPI('/health');
+        showResult('healthResult', data);
+      } catch (error) {
+        showResult('healthResult', error, true);
+      }
+    });
+
+    // Cargar períodos disponibles
+    document.getElementById('getPeriodos').addEventListener('click', async () => {
+      showLoading('periodosResult');
+      try {
+        const data = await fetchAPI('/api/estadisticas/periodos');
+        showResult('periodosResult', data);
+        
+        // Llenar selectores de períodos
+        fillPeriodosSelects(data.periodos);
+      } catch (error) {
+        showResult('periodosResult', error, true);
+      }
+    });
+
+    // Cargar dependencias disponibles
+    document.getElementById('getDependencias').addEventListener('click', async () => {
+      showLoading('dependenciasResult');
+      try {
+        const data = await fetchAPI('/api/estadisticas/dependencias');
+        showResult('dependenciasResult', data);
+        
+        // Llenar selectores de dependencias
+        fillDependenciasSelects(data.dependencias);
+      } catch (error) {
+        showResult('dependenciasResult', error, true);
+      }
+    });
+
+    // Función para llenar selectores de períodos
+    function fillPeriodosSelects(periodos) {
+      const categoriaPeriodoSelect = document.getElementById('categoriaPeriodo');
+      const comparacionPeriodoSelect = document.getElementById('comparacionPeriodo');
+      
+      categoriaPeriodoSelect.innerHTML = '';
+      comparacionPeriodoSelect.innerHTML = '';
+      
+      periodos.forEach(periodo => {
+        const year = periodo.substring(0, 4);
+        const month = periodo.substring(4, 6);
+        const label = `${year}-${month}`;
+        
+        const option1 = document.createElement('option');
+        option1.value = periodo;
+        option1.textContent = label;
+        categoriaPeriodoSelect.appendChild(option1);
+        
+        const option2 = document.createElement('option');
+        option2.value = periodo;
+        option2.textContent = label;
+        comparacionPeriodoSelect.appendChild(option2);
+      });
+    }
+
+    // Función para llenar selectores de dependencias
+    function fillDependenciasSelects(dependencias) {
+      const categoriaDependenciaSelect = document.getElementById('categoriaDependencia');
+      const comparacionDependenciasSelect = document.getElementById('comparacionDependencias');
+      
+      categoriaDependenciaSelect.innerHTML = '';
+      comparacionDependenciasSelect.innerHTML = '';
+      
+      dependencias.forEach(dep => {
+        const option1 = document.createElement('option');
+        option1.value = dep.nombre;
+        option1.textContent = dep.nombre;
+        categoriaDependenciaSelect.appendChild(option1);
+        
+        const option2 = document.createElement('option');
+        option2.value = dep.nombre;
+        option2.textContent = dep.nombre;
+        comparacionDependenciasSelect.appendChild(option2);
+      });
+    }
+
+    // Buscar categorías por dependencia
+    document.getElementById('getCategorias').addEventListener('click', async () => {
+      showLoading('categoriasResult');
+      
+      const dependencia = document.getElementById('categoriaDependencia').value;
+      const periodo = document.getElementById('categoriaPeriodo').value;
+      const buscarEnGoogleSheets = document.getElementById('categoriaGoogleSheets').checked;
+      
+      if (!dependencia || !periodo) {
+        showResult('categoriasResult', { message: 'Debe seleccionar dependencia y período' }, true);
+        return;
+      }
+      
+      try {
+        const data = await fetchAPI(`/api/estadisticas/categorias/${encodeURIComponent(dependencia)}/${periodo}?buscarEnGoogleSheets=${buscarEnGoogleSheets}`);
+        showResult('categoriasResult', data);
+      } catch (error) {
+        showResult('categoriasResult', error, true);
+      }
+    });
+
+    // Comparar dependencias
+    document.getElementById('getComparacion').addEventListener('click', async () => {
+      showLoading('comparacionResult');
+      
+      const selectElement = document.getElementById('comparacionDependencias');
+      const dependencias = Array.from(selectElement.selectedOptions).map(option => option.value);
+      const periodo = document.getElementById('comparacionPeriodo').value;
+      const buscarEnGoogleSheets = document.getElementById('comparacionGoogleSheets').checked;
+      
+      if (dependencias.length === 0 || !periodo) {
+        showResult('comparacionResult', { message: 'Debe seleccionar al menos una dependencia y un período' }, true);
+        return;
+      }
+      
+      try {
+        const data = await fetchAPI('/api/estadisticas/comparar', 'POST', {
+          dependencias,
+          periodo,
+          metricas: ['categorias', 'existentes', 'recibidos', 'reingresados'],
+          buscarEnGoogleSheets
+        });
+        showResult('comparacionResult', data);
+      } catch (error) {
+        showResult('comparacionResult', error, true);
+      }
+    });
+
+    // Inicialización automática
+    window.addEventListener('load', () => {
+      // Verificar estado de la API al cargar
+      document.getElementById('checkHealth').click();
+    });
+  </script>
+</body>
+</html>
