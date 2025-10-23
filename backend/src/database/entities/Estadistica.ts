@@ -6,9 +6,13 @@ import {
   CreateDateColumn, 
   UpdateDateColumn, 
   ManyToOne, 
-  JoinColumn 
+  OneToMany,
+  JoinColumn,
+  BeforeInsert,
+  BeforeUpdate
 } from 'typeorm';
 import { Dependencia } from './Dependencia';
+import { EstadisticaTipoCaso } from './EstadisticaTipoCaso';
 
 @Entity('estadisticas')
 @Index(['dependenciaId', 'periodo'], { unique: true })
@@ -41,6 +45,23 @@ export class Estadistica {
   @Index()
   periodo!: string;
 
+  // Campos denormalizados para consultas de rango más eficientes
+  @Column({
+    type: 'smallint',
+    nullable: false,
+    comment: 'Año extraído del período para consultas eficientes'
+  })
+  @Index()
+  anio!: number;
+
+  @Column({
+    type: 'tinyint',
+    nullable: false,
+    comment: 'Mes extraído del período para consultas eficientes'
+  })
+  @Index()
+  mes!: number;
+
   @Column({
     type: 'date',
     nullable: true,
@@ -71,11 +92,11 @@ export class Estadistica {
   })
   expedientesReingresados!: number;
 
-  // Categorías detalladas en JSON (objetos de juicio)
+  // Categorías detalladas en JSON (objetos de juicio) - FALLBACK ONLY
   @Column({
     type: 'json',
     nullable: true,
-    comment: 'Detalle de categorías/objetos de juicio con asignados y reingresados'
+    comment: 'FALLBACK: Detalle de categorías/objetos de juicio. Usar EstadisticaTipoCaso como fuente principal'
   })
   categoriasDetalle?: {
     [categoria: string]: {
@@ -83,6 +104,9 @@ export class Estadistica {
       reingresados: number;
     };
   };
+
+  // NOTA: Usar preferentemente la relación EstadisticaTipoCaso para datos estructurados
+  // categoriasDetalle es solo un fallback para compatibilidad con datos legacy
 
   // Alias explícito para objetos de juicio (mismo contenido que categoriasDetalle)
   get objetosJuicio(): {
@@ -138,9 +162,79 @@ export class Estadistica {
   @JoinColumn({ name: 'dependenciaId' })
   dependencia!: Dependencia;
 
+  // Relación con EstadisticaTipoCaso (fuente principal de datos de tipos de caso)
+  @OneToMany(() => EstadisticaTipoCaso, estadisticaTipoCaso => estadisticaTipoCaso.estadistica, { 
+    cascade: true,
+    lazy: true 
+  })
+  estadisticasTipoCaso?: Promise<EstadisticaTipoCaso[]>;
+
   // Métodos helper
   getTotalExpedientes(): number {
     return this.expedientesExistentes + this.expedientesRecibidos;
+  }
+
+  /**
+   * Obtiene los tipos de caso desde EstadisticaTipoCaso (fuente principal)
+   * Fallback a categoriasDetalle si no hay datos estructurados
+   */
+  async getTiposCasoEstructurados(): Promise<Array<{
+    id: number;
+    nombre: string;
+    asignados: number;
+    reingresados: number;
+    existentes: number;
+    resueltos: number;
+    pendientes: number;
+    total: number;
+  }>> {
+    try {
+      // Intentar obtener desde EstadisticaTipoCaso (fuente principal)
+      const estadisticasTipoCaso = await this.estadisticasTipoCaso;
+      
+      if (estadisticasTipoCaso && estadisticasTipoCaso.length > 0) {
+        return estadisticasTipoCaso.map(etc => ({
+          id: etc.tipoCasoId,
+          nombre: etc.tipoCaso.name,
+          asignados: etc.recibidosAsignados,
+          reingresados: etc.reingresados,
+          existentes: etc.existentes,
+          resueltos: etc.resueltos,
+          pendientes: etc.pendientes,
+          total: etc.total
+        }));
+      }
+    } catch (error) {
+      console.warn('No se pudieron cargar EstadisticaTipoCaso, usando fallback', error);
+    }
+
+    // Fallback a categoriasDetalle para compatibilidad legacy
+    if (this.categoriasDetalle) {
+      return Object.entries(this.categoriasDetalle).map(([nombre, datos], index) => ({
+        id: -index, // ID temporal negativo para datos legacy
+        nombre,
+        asignados: datos.asignados || 0,
+        reingresados: datos.reingresados || 0,
+        existentes: 0, // No disponible en categoriasDetalle
+        resueltos: 0,  // No disponible en categoriasDetalle
+        pendientes: 0, // No disponible en categoriasDetalle
+        total: (datos.asignados || 0) + (datos.reingresados || 0)
+      }));
+    }
+
+    return [];
+  }
+
+  /**
+   * Determina si esta estadística tiene datos estructurados o solo legacy
+   */
+  async tieneEstructuraCompleta(): Promise<boolean> {
+    try {
+      const estadisticasTipoCaso = await this.estadisticasTipoCaso;
+      return !!(estadisticasTipoCaso && estadisticasTipoCaso.length > 0);
+    } catch {
+      return false;
+    }
   }
 
   getCategoriaTotal(tipo: 'asignados' | 'reingresados'): number {
@@ -191,13 +285,28 @@ export class Estadistica {
     return totales;
   }
 
-  // Obtener año y mes del período
+  // Obtener año y mes del período (ahora desde campos denormalizados)
   getAno(): number {
-    return Math.floor(parseInt(this.periodo) / 100);
+    return this.anio;
   }
 
   getMes(): number {
-    return parseInt(this.periodo) % 100;
+    return this.mes;
+  }
+
+  // Método para sincronizar período con campos anio/mes
+  syncPeriodoFields(): void {
+    if (this.periodo && Estadistica.validarPeriodo(this.periodo)) {
+      this.anio = Math.floor(parseInt(this.periodo) / 100);
+      this.mes = parseInt(this.periodo) % 100;
+    }
+  }
+
+  // Hook para sincronizar automáticamente antes de guardar
+  @BeforeInsert()
+  @BeforeUpdate()
+  beforeSave(): void {
+    this.syncPeriodoFields();
   }
 
   // Validar período

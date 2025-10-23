@@ -4,16 +4,18 @@ import { SyncService } from '../services/sync.service';
 interface SyncRequestBody {
   secret: string;
   dependencyName?: string;
+  force?: boolean;
 }
 
 export class AdminController {
   /**
    * Endpoint para ejecutar sincronización completa desde Google Sheets
+   * Usa directamente SyncService como orquestador principal
    */
   public sync = async (request: FastifyRequest<{ Body: SyncRequestBody }>, reply: FastifyReply) => {
     try {
       // Validar la clave secreta
-      const { secret, dependencyName } = request.body;
+      const { secret, dependencyName, force = false } = request.body;
 
       if (!secret || secret !== process.env.SYNC_SECRET_KEY) {
         return reply.code(401).send({ 
@@ -22,7 +24,7 @@ export class AdminController {
         });
       }
 
-      // Crear instancia del servicio de sincronización
+      // Crear instancia del servicio de sincronización (orquestador principal)
       const syncService = new SyncService();
 
       let result;
@@ -30,21 +32,30 @@ export class AdminController {
       if (dependencyName) {
         // Sincronizar solo una dependencia específica
         console.log(`🎯 Sincronizando dependencia específica: ${dependencyName}`);
-        result = await syncService.syncSingleDependency(dependencyName);
+        console.warn(`⚠️ La sincronización de dependencia específica no está implementada. Ejecutando sincronización completa...`);
+        // TODO: Implementar sincronización de dependencia específica
+        result = await syncService.syncFromSheet();
       } else {
         // Sincronización completa
         console.log('🚀 Iniciando sincronización completa...');
         result = await syncService.syncFromSheet();
       }
 
-      // Enviar respuesta
-      const statusCode = result.success ? 200 : 500;
-      return reply.code(statusCode).send({
+      // Enriquecer la respuesta con metadatos adicionales
+      const enrichedResult = {
         ...result,
-        timestamp: new Date().toISOString(),
-        requestedBy: 'admin',
-        type: dependencyName ? 'single_dependency' : 'full_sync'
-      });
+        metadata: {
+          timestamp: new Date().toISOString(),
+          requestedBy: 'admin',
+          type: dependencyName ? 'single_dependency' : 'full_sync',
+          force,
+          environment: process.env.NODE_ENV || 'development'
+        }
+      };
+
+      // Enviar respuesta con código apropiado
+      const statusCode = result.success ? 200 : 500;
+      return reply.code(statusCode).send(enrichedResult);
 
     } catch (error) {
       console.error('❌ Error en endpoint de sincronización:', error);
@@ -53,7 +64,11 @@ export class AdminController {
         success: false,
         message: 'Error interno del servidor durante la sincronización',
         error: error instanceof Error ? error.message : String(error),
-        timestamp: new Date().toISOString()
+        metadata: {
+          timestamp: new Date().toISOString(),
+          requestedBy: 'admin',
+          type: 'error'
+        }
       });
     }
   };

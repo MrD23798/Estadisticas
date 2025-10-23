@@ -26,6 +26,14 @@ export class Dependencia {
     type: 'varchar',
     length: 200,
     nullable: true,
+    comment: 'Nombre de la hoja de Google Sheets correspondiente'
+  })
+  sheetName?: string;
+
+  @Column({
+    type: 'varchar',
+    length: 200,
+    nullable: true,
     comment: 'Tipo de dependencia (Cámara, Juzgado, etc.)'
   })
   tipo?: string;

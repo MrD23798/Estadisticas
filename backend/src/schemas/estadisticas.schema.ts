@@ -183,3 +183,73 @@ export function validarRangoPeriodos(inicio: string, fin: string): boolean {
 export function normalizarNombreDependencia(nombre: string): string {
   return nombre.trim().replace(/\s+/g, ' ').toUpperCase();
 }
+
+// ===============================
+// ESQUEMAS PARA ENDPOINTS FRONTEND
+// ===============================
+
+// Schema para evolución de dependencia específica
+export const EvolucionDependenciaSchema = z.object({
+  dependenciaId: z.number().int().positive('El ID de dependencia debe ser un número positivo'),
+});
+
+export type EvolucionDependenciaDTO = z.infer<typeof EvolucionDependenciaSchema>;
+
+// Schema para comparativa de múltiples dependencias
+export const ComparativaDependenciasSchema = z.object({
+  dependenciaIds: z.array(z.number().int().positive()).min(1, 'Se requiere al menos un ID de dependencia'),
+  anio: z.number().int().min(2005).max(2099, 'El año debe estar entre 2005 y 2099'),
+  mes: z.number().int().min(1).max(12, 'El mes debe estar entre 1 y 12'),
+});
+
+export type ComparativaDependenciasDTO = z.infer<typeof ComparativaDependenciasSchema>;
+
+// Schema para reporte individual completo
+export const ReporteIndividualSchema = z.object({
+  dependenciaId: z.number().int().positive('El ID de dependencia debe ser un número positivo'),
+  anio: z.number().int().min(2005).max(2099, 'El año debe estar entre 2005 y 2099'),
+  mes: z.number().int().min(1).max(12, 'El mes debe estar entre 1 y 12'),
+});
+
+export type ReporteIndividualDTO = z.infer<typeof ReporteIndividualSchema>;
+
+// 📊 Tipos de respuesta para los nuevos endpoints
+
+export interface EvolucionDependenciaResponse {
+  periodo: string;
+  valorMetrica: number;
+}
+
+export interface ComparativaDependenciasResponse {
+  dependenciaNombre: string;
+  valorMetrica: number;
+}
+
+export interface TipoCasoDetalle {
+  nombre: string;
+  asignados: number;
+  reingresados: number;
+  existentes: number;
+  resueltos: number;
+  pendientes: number;
+}
+
+export interface ReporteIndividualResponse {
+  dependencia: string;
+  periodo: string;
+  fecha?: string;
+  expedientesExistentes: number;
+  expedientesRecibidos: number;
+  expedientesReingresados: number;
+  totalExpedientes: number;
+  tiposDeCaso: TipoCasoDetalle[];
+  resumen: {
+    totalTiposDeCaso: number;
+    totalAsignados: number;
+    totalReingresados: number;
+    totalResueltos: number;
+    totalPendientes: number;
+  };
+  metadatos?: Record<string, any>;
+  ultimaActualizacion?: string;
+}

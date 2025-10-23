@@ -19,7 +19,7 @@ export const estadisticasService = {
     
     const query = repository.createQueryBuilder('e')
       .leftJoinAndSelect('e.dependencia', 'd')
-      .where('d.nombre = :dependencia', { dependencia: params.dependencia });
+      .where('(d.nombre = :dependencia OR d.codigo = :dependencia)', { dependencia: params.dependencia });
     
     if (params.periodo) {
       query.andWhere('e.periodo = :periodo', { periodo: params.periodo });
@@ -59,7 +59,7 @@ export const estadisticasService = {
     
     const estadistica = await repository.createQueryBuilder('e')
       .leftJoinAndSelect('e.dependencia', 'd')
-      .where('d.nombre = :dependencia', { dependencia: params.dependencia })
+      .where('(d.nombre = :dependencia OR d.codigo = :dependencia)', { dependencia: params.dependencia })
       .andWhere('e.periodo = :periodo', { periodo: params.periodo })
       .getOne();
     
@@ -100,15 +100,33 @@ export const estadisticasService = {
           throw new Error('Google Sheets service no está disponible');
         }
         
-        // Verificar si hay sheets disponibles que puedan tener la información
-        const availableSheets = await googleSheetsService.listAvailableSheets();
-        
         // Buscar datos para esta dependencia y periodo en Google Sheets
         let datosEncontrados = false;
         let categoriasSheet: { categoria: string; asignados: number; reingresados: number; total: number }[] = [];
         
+        // OPTIMIZACIÓN: Si la dependencia tiene un sheetName asociado, ir directo a esa hoja
+        const dependenciaRepo = AppDataSource.getRepository(Dependencia);
+        const dependenciaEntity = await dependenciaRepo.findOne({
+          where: [
+            { nombre: params.dependencia },
+            { codigo: params.dependencia }
+          ]
+        });
+        
+        let sheetsToSearch: { name: string }[];
+        
+        if (dependenciaEntity?.sheetName) {
+          // Buscar directamente en la hoja específica
+          console.log(`🎯 Buscando directamente en la hoja: ${dependenciaEntity.sheetName}`);
+          sheetsToSearch = [{ name: dependenciaEntity.sheetName }];
+        } else {
+          // Fallback: buscar en todas las hojas disponibles
+          console.log(`🔍 No se encontró sheetName específico. Buscando en todas las hojas...`);
+          sheetsToSearch = await googleSheetsService.listAvailableSheets();
+        }
+        
         // Explorar las hojas en busca de datos para esta dependencia y período
-        for (const sheet of availableSheets) {
+        for (const sheet of sheetsToSearch) {
           try {
             // Intentamos extraer datos de esta hoja
             const estadisticas = await googleSheetsService.extractSheetData(sheet.name);
@@ -121,6 +139,13 @@ export const estadisticasService = {
             
             if (estadisticaGS && estadisticaGS.categoriasDetalle) {
               console.log(`✅ Datos encontrados en Google Sheets (sheet: ${sheet.name})`);
+              
+              // Si la dependencia no tenía sheetName, guardarlo para futuras búsquedas
+              if (dependenciaEntity && !dependenciaEntity.sheetName) {
+                console.log(`💾 Guardando sheetName "${sheet.name}" para ${dependenciaEntity.nombre}`);
+                dependenciaEntity.sheetName = sheet.name;
+                await dependenciaRepo.save(dependenciaEntity);
+              }
               
               categoriasSheet = Object.entries(estadisticaGS.categoriasDetalle)
                 .map(([nombre, datos]) => ({
@@ -712,28 +737,44 @@ export const estadisticasService = {
     try {
       console.log('🔄 Iniciando sincronización desde Google Sheets...');
       
-      // Importar el servicio de Google Sheets
-      // Usamos el servicio singleton en lugar de crear una nueva instancia
-      const { googleSheetsService } = await import('./google.sheets.service');
+      // Delegar la sincronización al SyncService que es el orquestador principal
+      const { SyncService } = await import('./sync.service');
+      const syncService = new SyncService();
 
-      // Verificar que el servicio esté disponible
-      if (!googleSheetsService.isAvailable()) {
-        throw new Error('Google Sheets service no está disponible. Verifica la configuración.');
-      }
-
-      // Prueba de conexión antes de sincronizar
-      console.log('🔍 Probando conexión a Google Sheets API...');
-      const isConnected = await googleSheetsService.testConnection();
+      let resultado;
       
-      if (!isConnected) {
-        throw new Error('No se pudo conectar con Google Sheets API. Verifica las credenciales y la conectividad.');
+      if (params.sheetIds && params.sheetIds.length > 0) {
+        // Si se especifican hojas específicas, procesarlas una por una
+        console.log(`📊 Sincronizando hojas específicas: ${params.sheetIds.join(', ')}`);
+        console.warn(`⚠️ La sincronización de hojas específicas no está implementada. Ejecutando sincronización completa...`);
+        
+        // TODO: Implementar sincronización de hojas específicas
+        const syncResult = await syncService.syncFromSheet();
+        
+        resultado = {
+          procesados: syncResult.details?.total || 0,
+          insertados: syncResult.details?.inserted || 0,
+          actualizados: syncResult.details?.updated || 0,
+          errores: syncResult.details?.errors || []
+        };
+      } else {
+        // Sincronización completa
+        console.log('� Ejecutando sincronización completa...');
+        const syncResult = await syncService.syncFromSheet();
+        
+        if (syncResult.success && syncResult.details) {
+          resultado = {
+            procesados: syncResult.details.total || 0,
+            insertados: syncResult.details.success || 0,
+            actualizados: 0,
+            errores: syncResult.details.results
+              ? syncResult.details.results.filter((r: any) => !r.success).map((r: any) => r.error || 'Error desconocido')
+              : []
+          };
+        } else {
+          throw new Error(syncResult.message || 'Error en la sincronización');
+        }
       }
-      
-      console.log('✅ Conexión a Google Sheets API establecida');
-      console.log('📊 Comenzando sincronización de datos...');
-
-      // Sincronizar datos desde Google Sheets a la base de datos
-      const resultado = await googleSheetsService.syncToDatabase(params.sheetIds);
 
       console.log(`\n📊 SINCRONIZACIÓN COMPLETADA:`);
       console.log(`  ✓ Total procesados: ${resultado.procesados}`);
@@ -743,7 +784,7 @@ export const estadisticasService = {
 
       if (resultado.errores.length > 0) {
         console.warn('\n⚠️ Errores encontrados durante la sincronización:');
-        resultado.errores.slice(0, 5).forEach((err, i) => {
+        resultado.errores.slice(0, 5).forEach((err: string, i: number) => {
           console.warn(`  ${i + 1}. ${err}`);
         });
         
@@ -946,5 +987,278 @@ export const estadisticasService = {
   calcularPorcentajeCrecimiento(actual: number, anterior: number): number {
     if (anterior === 0) return actual > 0 ? 100 : 0;
     return Math.round(((actual - anterior) / anterior) * 100 * 100) / 100;
+  },
+
+  // =============================
+  // NUEVOS MÉTODOS PARA FRONTEND
+  // =============================
+  
+  // Obtener evolución temporal específica para frontend
+  async getEvolucionFrontend(dependenciaId: number) {
+    const repository = AppDataSource.getRepository(Estadistica);
+    
+    console.log(`🔍 Obteniendo evolución para dependencia ID: ${dependenciaId}`);
+    
+    const resultados = await repository.createQueryBuilder('e')
+      .select([
+        'e.periodo as periodo',
+        'e.expedientesExistentes as valorMetrica'
+      ])
+      .where('e.dependenciaId = :dependenciaId', { dependenciaId })
+      .orderBy('e.periodo', 'ASC')
+      .getRawMany();
+    
+    console.log(`✅ Se encontraron ${resultados.length} registros de evolución`);
+    
+    return resultados.map(r => ({
+      periodo: r.periodo,
+      valorMetrica: r.valorMetrica || 0
+    }));
+  },
+
+  // Obtener comparativa específica para frontend
+  async getComparativaFrontend(dependenciaIds: number[], anio: number, mes: number) {
+    const repository = AppDataSource.getRepository(Estadistica);
+    
+    const periodo = `${anio}${mes.toString().padStart(2, '0')}`;
+    console.log(`🔍 Obteniendo comparativa para período ${periodo} y dependencias: ${dependenciaIds.join(', ')}`);
+    
+    const resultados = await repository.createQueryBuilder('e')
+      .select([
+        'd.nombre as dependenciaNombre',
+        'e.expedientesExistentes as valorMetrica'
+      ])
+      .leftJoin('e.dependencia', 'd')
+      .where('e.dependenciaId IN (:...dependenciaIds)', { dependenciaIds })
+      .andWhere('e.periodo = :periodo', { periodo })
+      .orderBy('d.nombre', 'ASC')
+      .getRawMany();
+    
+    console.log(`✅ Se encontraron ${resultados.length} resultados de comparativa`);
+    
+    return resultados.map(r => ({
+      dependenciaNombre: r.dependenciaNombre,
+      valorMetrica: r.valorMetrica || 0
+    }));
+  },
+
+  // Obtener reporte individual complejo para frontend
+  async getReporteIndividualFrontend(dependenciaId: number, anio: number, mes: number) {
+    const estadisticaRepository = AppDataSource.getRepository(Estadistica);
+    const { EstadisticaTipoCaso } = await import('../database/entities/EstadisticaTipoCaso');
+    const estadisticaTipoCasoRepository = AppDataSource.getRepository(EstadisticaTipoCaso);
+    
+    const periodo = `${anio}${mes.toString().padStart(2, '0')}`;
+    console.log(`🔍 Obteniendo reporte individual para dependencia ID: ${dependenciaId}, período: ${periodo}`);
+    
+    // 1. Obtener estadística principal (totales)
+    const estadisticaPrincipal = await estadisticaRepository.createQueryBuilder('e')
+      .leftJoinAndSelect('e.dependencia', 'd')
+      .where('e.dependenciaId = :dependenciaId', { dependenciaId })
+      .andWhere('e.periodo = :periodo', { periodo })
+      .getOne();
+    
+    if (!estadisticaPrincipal) {
+      console.log(`⚠️ No se encontró estadística principal para dependencia ${dependenciaId} en período ${periodo}`);
+      return null;
+    }
+    
+    // 2. Obtener desglose por tipos de caso
+    const desgloseTiposCaso = await estadisticaTipoCasoRepository.createQueryBuilder('etc')
+      .select([
+        'tc.name as nombre',
+        'etc.recibidosAsignados as asignados',
+        'etc.reingresados as reingresados',
+        'etc.existentes as existentes',
+        'etc.total as total'
+      ])
+      .leftJoin('etc.tipoCaso', 'tc')
+      .where('etc.estadisticaId = :estadisticaId', { estadisticaId: estadisticaPrincipal.id })
+      .orderBy('etc.total', 'DESC')
+      .getRawMany();
+    
+    // 3. Si no hay datos en EstadisticaTipoCaso, usar categoriasDetalle de Estadistica
+    let tiposDeCaso: Array<{
+      nombre: string;
+      asignados: number;
+      reingresados: number;
+      existentes: number;
+      total: number;
+    }> = [];
+    
+    if (desgloseTiposCaso.length > 0) {
+      tiposDeCaso = desgloseTiposCaso.map(d => ({
+        nombre: d.nombre,
+        asignados: d.asignados || 0,
+        reingresados: d.reingresados || 0,
+        existentes: d.existentes || 0,
+        total: d.total || 0
+      }));
+    } else if (estadisticaPrincipal.categoriasDetalle) {
+      // Usar categoriasDetalle como fallback
+      tiposDeCaso = Object.entries(estadisticaPrincipal.categoriasDetalle).map(([nombre, datos]) => ({
+        nombre,
+        asignados: datos.asignados || 0,
+        reingresados: datos.reingresados || 0,
+        existentes: 0, // No disponible en categoriasDetalle
+        total: (datos.asignados || 0) + (datos.reingresados || 0)
+      })).sort((a, b) => b.total - a.total);
+    }
+    
+    console.log(`✅ Reporte individual completado: ${tiposDeCaso.length} tipos de caso encontrados`);
+    
+    // 4. Ensamblar el objeto de respuesta complejo
+    return {
+      dependencia: estadisticaPrincipal.dependencia.nombre,
+      periodo: estadisticaPrincipal.periodo,
+      fechaEstadistica: estadisticaPrincipal.fechaEstadistica?.toISOString()?.split('T')[0],
+      
+      // Totales generales
+      expedientesExistentes: estadisticaPrincipal.expedientesExistentes || 0,
+      expedientesRecibidos: estadisticaPrincipal.expedientesRecibidos || 0,
+      expedientesReingresados: estadisticaPrincipal.expedientesReingresados || 0,
+      
+      // Desglose por tipos de caso
+      tiposDeCaso,
+      
+      // Métricas adicionales
+      totalTiposCaso: tiposDeCaso.length,
+      totalDesglosado: tiposDeCaso.reduce((sum, tipo) => sum + tipo.total, 0),
+      
+      // Metadatos
+      metadatos: estadisticaPrincipal.metadatos || {},
+      ultimaActualizacion: estadisticaPrincipal.updatedAt?.toISOString()
+    };
+  },
+
+  // Nuevos métodos para el frontend
+
+  // Evolución de una dependencia específica
+  async getEvolucionDependencia(dependenciaId: number) {
+    const repository = AppDataSource.getRepository(Estadistica);
+    
+    console.log(`🔍 Obteniendo evolución para dependencia ${dependenciaId}...`);
+    
+    const estadisticas = await repository.createQueryBuilder('e')
+      .select([
+        'e.periodo as periodo',
+        'e.expedientesExistentes as valorMetrica'
+      ])
+      .where('e.dependenciaId = :dependenciaId', { dependenciaId })
+      .orderBy('e.periodo', 'ASC')
+      .getRawMany();
+    
+    console.log(`✅ Encontrados ${estadisticas.length} registros de evolución`);
+    
+    return estadisticas.map(e => ({
+      periodo: e.periodo,
+      valorMetrica: e.valorMetrica || 0
+    }));
+  },
+
+  // Comparativa de múltiples dependencias para un período específico
+  async getComparativaDependencias(dependenciaIds: number[], anio: number, mes: number) {
+    const repository = AppDataSource.getRepository(Estadistica);
+    
+    console.log(`🔍 Obteniendo comparativa para ${dependenciaIds.length} dependencias en ${anio}-${mes.toString().padStart(2, '0')}...`);
+    
+    // Usar campos anio/mes para consulta más eficiente
+    const resultados = await repository.createQueryBuilder('e')
+      .select([
+        'd.nombre as dependenciaNombre',
+        'e.expedientesExistentes as valorMetrica'
+      ])
+      .leftJoin('e.dependencia', 'd')
+      .where('e.dependenciaId IN (:...dependenciaIds)', { dependenciaIds })
+      .andWhere('e.anio = :anio', { anio })
+      .andWhere('e.mes = :mes', { mes })
+      .orderBy('d.nombre', 'ASC')
+      .getRawMany();
+    
+    console.log(`✅ Encontrados ${resultados.length} registros de comparativa`);
+    
+    return resultados.map(r => ({
+      dependenciaNombre: r.dependenciaNombre,
+      valorMetrica: r.valorMetrica || 0
+    }));
+  },
+
+  // Reporte individual completo con totales y desglose por tipos de caso
+  async getReporteIndividualCompleto(dependenciaId: number, anio: number, mes: number) {
+    console.log(`🔍 Obteniendo reporte individual para dependencia ${dependenciaId} en ${anio}-${mes.toString().padStart(2, '0')}...`);
+    
+    // 1. Obtener totales de la estadística principal usando anio/mes para eficiencia
+    const estadisticaRepository = AppDataSource.getRepository(Estadistica);
+    const estadistica = await estadisticaRepository.createQueryBuilder('e')
+      .leftJoinAndSelect('e.dependencia', 'd')
+      .where('e.dependenciaId = :dependenciaId', { dependenciaId })
+      .andWhere('e.anio = :anio', { anio })
+      .andWhere('e.mes = :mes', { mes })
+      .getOne();
+    
+    if (!estadistica) {
+      console.warn(`⚠️ No se encontró estadística para dependencia ${dependenciaId} en ${anio}-${mes.toString().padStart(2, '0')}`);
+      throw new Error(`No se encontraron datos para la dependencia en el período ${anio}-${mes.toString().padStart(2, '0')}`);
+    }
+
+    // 2. Priorizar EstadisticaTipoCaso sobre categoriasDetalle
+    let tiposDeCaso: Array<{
+      nombre: string;
+      asignados: number;
+      reingresados: number;
+      existentes: number;
+      resueltos: number;
+      pendientes: number;
+    }> = [];
+
+    try {
+      // Usar método mejorado de la entidad
+      const tiposCasoEstructurados = await estadistica.getTiposCasoEstructurados();
+      tiposDeCaso = tiposCasoEstructurados.map(tc => ({
+        nombre: tc.nombre,
+        asignados: tc.asignados,
+        reingresados: tc.reingresados,
+        existentes: tc.existentes,
+        resueltos: tc.resueltos,
+        pendientes: tc.pendientes
+      }));
+      
+      const tieneEstructuraCompleta = await estadistica.tieneEstructuraCompleta();
+      console.log(`📊 Estructura de datos: ${tieneEstructuraCompleta ? 'Completa (EstadisticaTipoCaso)' : 'Legacy (categoriasDetalle)'}`);
+      
+    } catch (error) {
+      console.warn('Error obteniendo tipos de caso estructurados:', error);
+    }
+    
+    console.log(`✅ Reporte individual generado con ${tiposDeCaso.length} tipos de caso`);
+    
+    // 4. Ensamblar el objeto JSON complejo
+    return {
+      dependencia: estadistica.dependencia.nombre,
+      periodo: estadistica.periodo,
+      fecha: estadistica.fechaEstadistica,
+      
+      // Totales generales
+      expedientesExistentes: estadistica.expedientesExistentes,
+      expedientesRecibidos: estadistica.expedientesRecibidos,
+      expedientesReingresados: estadistica.expedientesReingresados,
+      totalExpedientes: estadistica.getTotalExpedientes(),
+      
+      // Desglose por tipos de caso
+      tiposDeCaso,
+      
+      // Resumen estadístico
+      resumen: {
+        totalTiposDeCaso: tiposDeCaso.length,
+        totalAsignados: tiposDeCaso.reduce((sum, tc) => sum + tc.asignados, 0),
+        totalReingresados: tiposDeCaso.reduce((sum, tc) => sum + tc.reingresados, 0),
+        totalResueltos: tiposDeCaso.reduce((sum, tc) => sum + tc.resueltos, 0),
+        totalPendientes: tiposDeCaso.reduce((sum, tc) => sum + tc.pendientes, 0),
+      },
+      
+      // Metadatos
+      metadatos: estadistica.metadatos,
+      ultimaActualizacion: estadistica.updatedAt
+    };
   },
 };

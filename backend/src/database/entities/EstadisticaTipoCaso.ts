@@ -102,7 +102,7 @@ export class EstadisticaTipoCaso {
   updatedAt!: Date;
 
   // Relaciones
-  @ManyToOne(() => Estadistica, { eager: false })
+  @ManyToOne(() => Estadistica, estadistica => estadistica.estadisticasTipoCaso, { eager: false })
   @JoinColumn({ name: 'estadisticaId' })
   estadistica!: Estadistica;
 

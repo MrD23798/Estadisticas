@@ -8,7 +8,10 @@ import {
   ConsultaCategoriasSchema,
   DashboardResumenSchema,
   SincronizacionSchema,
-  BusquedaSchema
+  BusquedaSchema,
+  EvolucionDependenciaSchema,
+  ComparativaDependenciasSchema,
+  ReporteIndividualSchema
 } from '../schemas/estadisticas.schema';
 
 // 🛣️ Rutas de la API con validación de esquemas Zod
@@ -91,4 +94,60 @@ export async function estadisticasRoutes(fastify: FastifyInstance) {
   fastify.post('/estadisticas/buscar', {
     // Temporalmente sin validación de esquema
   }, estadisticasController.buscar);
+
+  // ===============================
+  // NUEVAS RUTAS PARA EL FRONTEND
+  // ===============================
+
+  // Evolución de una dependencia específica
+  fastify.get('/estadisticas/evolucion', {
+    schema: {
+      querystring: {
+        type: 'object',
+        properties: {
+          dependenciaId: { type: 'string', pattern: '^\\d+$' }
+        },
+        required: ['dependenciaId']
+      },
+      description: 'Obtiene la evolución temporal de una dependencia específica',
+      tags: ['estadisticas', 'frontend'],
+      summary: 'Evolución de dependencia'
+    }
+  }, estadisticasController.getEvolucionFrontend);
+
+  // Comparativa de múltiples dependencias
+  fastify.get('/estadisticas/comparativa', {
+    schema: {
+      querystring: {
+        type: 'object',
+        properties: {
+          dependenciaIds: { type: 'string', pattern: '^\\d+(,\\d+)*$' },
+          anio: { type: 'string', pattern: '^\\d{4}$' },
+          mes: { type: 'string', pattern: '^([1-9]|1[0-2])$' }
+        },
+        required: ['dependenciaIds', 'anio', 'mes']
+      },
+      description: 'Compara múltiples dependencias para un período específico',
+      tags: ['estadisticas', 'frontend'],
+      summary: 'Comparativa de dependencias'
+    }
+  }, estadisticasController.getComparativaFrontend);
+
+  // Reporte individual completo
+  fastify.get('/estadisticas/individual', {
+    schema: {
+      querystring: {
+        type: 'object',
+        properties: {
+          dependenciaId: { type: 'string', pattern: '^\\d+$' },
+          anio: { type: 'string', pattern: '^\\d{4}$' },
+          mes: { type: 'string', pattern: '^([1-9]|1[0-2])$' }
+        },
+        required: ['dependenciaId', 'anio', 'mes']
+      },
+      description: 'Obtiene un reporte individual completo con totales y desglose por tipos de caso',
+      tags: ['estadisticas', 'frontend'],
+      summary: 'Reporte individual completo'
+    }
+  }, estadisticasController.getReporteIndividualFrontend);
 }

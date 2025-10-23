@@ -365,11 +365,6 @@ const DarkSelect: React.FC<DarkSelectProps> = ({
                           <span className="text-sm font-medium flex-1 min-w-0">
                             {name}
                           </span>
-                          {fullName.length > 45 && (
-                            <span className="text-xs opacity-60 italic whitespace-nowrap flex-shrink-0">
-                              Hover para ver completo
-                            </span>
-                          )}
                         </div>
                       </div>
 

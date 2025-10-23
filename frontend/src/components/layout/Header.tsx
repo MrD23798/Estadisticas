@@ -130,9 +130,7 @@ const Header: React.FC<HeaderProps> = ({ apiAvailable }) => {
               transition: { duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }
             }}
           >
-            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-              API no disponible. Algunas funciones podrían estar limitadas.
-            </p>
+            
           </motion.div>
         )}
       </div>

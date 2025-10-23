@@ -185,10 +185,16 @@ export const estadisticasController = {
       periodoInicio: string;
       periodoFin: string;
       agruparPor: 'mes' | 'trimestre' | 'año';
+      buscarEnGoogleSheets?: boolean;
     };
   }>, reply: FastifyReply) {
     try {
-      const resultado = await estadisticasService.getTimelineData(request.body);
+      // Asegurar que buscarEnGoogleSheets tenga un valor por defecto
+      const body = {
+        ...request.body,
+        buscarEnGoogleSheets: request.body.buscarEnGoogleSheets !== false
+      };
+      const resultado = await estadisticasService.getTimelineData(body);
       return reply.send(resultado);
     } catch (error) {
       request.log.error(error);
@@ -315,6 +321,156 @@ export const estadisticasController = {
       request.log.error(error);
       return reply.code(500).send({
         error: 'Error en búsqueda',
+        message: (error as Error).message,
+      });
+    }
+  },
+
+  // ===============================
+  // NUEVOS ENDPOINTS PARA FRONTEND
+  // ===============================
+
+  // Obtener evolución de una dependencia específica para el frontend
+  async getEvolucionFrontend(request: FastifyRequest<{
+    Querystring: { dependenciaId: string };
+  }>, reply: FastifyReply) {
+    try {
+      const dependenciaId = parseInt(request.query.dependenciaId);
+      
+      if (isNaN(dependenciaId)) {
+        return reply.code(400).send({
+          error: 'Parámetro inválido',
+          message: 'dependenciaId debe ser un número válido'
+        });
+      }
+
+      const resultado = await estadisticasService.getEvolucionDependencia(dependenciaId);
+      
+      return reply.send({
+        success: true,
+        data: resultado,
+        total: resultado.length
+      });
+    } catch (error) {
+      request.log.error(error);
+      return reply.code(500).send({
+        error: 'Error obteniendo evolución',
+        message: (error as Error).message,
+      });
+    }
+  },
+
+  // Obtener comparativa de múltiples dependencias para el frontend
+  async getComparativaFrontend(request: FastifyRequest<{
+    Querystring: { 
+      dependenciaIds: string; 
+      anio: string; 
+      mes: string; 
+    };
+  }>, reply: FastifyReply) {
+    try {
+      const { dependenciaIds, anio, mes } = request.query;
+      
+      // Parsear dependenciaIds (puede ser "1,2,3" o similar)
+      const ids = dependenciaIds.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+      const anioNum = parseInt(anio);
+      const mesNum = parseInt(mes);
+      
+      if (ids.length === 0) {
+        return reply.code(400).send({
+          error: 'Parámetro inválido',
+          message: 'dependenciaIds debe contener al menos un ID válido'
+        });
+      }
+      
+      if (isNaN(anioNum) || isNaN(mesNum)) {
+        return reply.code(400).send({
+          error: 'Parámetros inválidos',
+          message: 'anio y mes deben ser números válidos'
+        });
+      }
+      
+      if (mesNum < 1 || mesNum > 12) {
+        return reply.code(400).send({
+          error: 'Mes inválido',
+          message: 'mes debe estar entre 1 y 12'
+        });
+      }
+
+      const resultado = await estadisticasService.getComparativaDependencias(ids, anioNum, mesNum);
+      
+      return reply.send({
+        success: true,
+        data: resultado,
+        parametros: {
+          dependenciaIds: ids,
+          anio: anioNum,
+          mes: mesNum,
+          periodo: `${anioNum}${mesNum.toString().padStart(2, '0')}`
+        },
+        total: resultado.length
+      });
+    } catch (error) {
+      request.log.error(error);
+      return reply.code(500).send({
+        error: 'Error obteniendo comparativa',
+        message: (error as Error).message,
+      });
+    }
+  },
+
+  // Obtener reporte individual completo para el frontend
+  async getReporteIndividualFrontend(request: FastifyRequest<{
+    Querystring: { 
+      dependenciaId: string; 
+      anio: string; 
+      mes: string; 
+    };
+  }>, reply: FastifyReply) {
+    try {
+      const { dependenciaId, anio, mes } = request.query;
+      
+      const depId = parseInt(dependenciaId);
+      const anioNum = parseInt(anio);
+      const mesNum = parseInt(mes);
+      
+      if (isNaN(depId) || isNaN(anioNum) || isNaN(mesNum)) {
+        return reply.code(400).send({
+          error: 'Parámetros inválidos',
+          message: 'dependenciaId, anio y mes deben ser números válidos'
+        });
+      }
+      
+      if (mesNum < 1 || mesNum > 12) {
+        return reply.code(400).send({
+          error: 'Mes inválido',
+          message: 'mes debe estar entre 1 y 12'
+        });
+      }
+
+      const resultado = await estadisticasService.getReporteIndividualCompleto(depId, anioNum, mesNum);
+      
+      if (!resultado) {
+        return reply.code(404).send({
+          error: 'Datos no encontrados',
+          message: `No se encontraron datos para la dependencia ${depId} en ${anioNum}-${mesNum.toString().padStart(2, '0')}`
+        });
+      }
+      
+      return reply.send({
+        success: true,
+        data: resultado,
+        parametros: {
+          dependenciaId: depId,
+          anio: anioNum,
+          mes: mesNum,
+          periodo: `${anioNum}${mesNum.toString().padStart(2, '0')}`
+        }
+      });
+    } catch (error) {
+      request.log.error(error);
+      return reply.code(500).send({
+        error: 'Error obteniendo reporte individual',
         message: (error as Error).message,
       });
     }

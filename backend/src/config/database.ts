@@ -12,7 +12,7 @@ export const AppDataSource = new DataSource({
   username: config.database.username,
   password: config.database.password,
   database: config.database.database,
-  synchronize: false, // Temporalmente deshabilitado para evitar conflictos
+  synchronize: true, // Temporalmente deshabilitado para evitar conflictos
   logging: config.database.logging,
   ssl: config.database.ssl,
   entities: [Dependencia, Estadistica, TipoCaso, EstadisticaTipoCaso],

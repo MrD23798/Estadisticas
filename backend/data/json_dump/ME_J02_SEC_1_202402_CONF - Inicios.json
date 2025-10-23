@@ -1,0 +1,76 @@
+{
+  "context": {
+    "dependencia": "JUZGADO FEDERAL DE PRIMERA INSTANCIA DE LA SEGURIDAD SOCIAL Nº 2 - SECRETARÍA Nº 1",
+    "dependenciaAbreviada": "J2-SEC",
+    "periodo": "202402",
+    "anio": 2024,
+    "mes": 2,
+    "fechaEstadistica": "2024-02-29"
+  },
+  "totals": {
+    "expedientesExistentes": 5752,
+    "expedientesRecibidos": 222,
+    "expedientesReingresados": 0
+  },
+  "caseTypes": [
+    {
+      "name": "1.Amparo por Mora de la Administración",
+      "recibidosAsignados": 1,
+      "reingresados": 0
+    },
+    {
+      "name": "3.Pensiones",
+      "recibidosAsignados": 7,
+      "reingresados": 0
+    },
+    {
+      "name": "C.Prestaciones Varias",
+      "recibidosAsignados": 2,
+      "reingresados": 0
+    },
+    {
+      "name": "11.Reajustes Varios",
+      "recibidosAsignados": 168,
+      "reingresados": 0
+    },
+    {
+      "name": "13.Amparos y Sumarisimos",
+      "recibidosAsignados": 7,
+      "reingresados": 0
+    },
+    {
+      "name": "14.Medidas Cautelares",
+      "recibidosAsignados": 1,
+      "reingresados": 0
+    },
+    {
+      "name": "17.Personal Militar y Civil de las FF.AA.y de Seguridad",
+      "recibidosAsignados": 18,
+      "reingresados": 0
+    },
+    {
+      "name": "37.Acción Meramente Declarativa",
+      "recibidosAsignados": 11,
+      "reingresados": 0
+    },
+    {
+      "name": "38.Cobro de Pesos",
+      "recibidosAsignados": 1,
+      "reingresados": 0
+    },
+    {
+      "name": "40.Inconstitucionalidades Varias",
+      "recibidosAsignados": 5,
+      "reingresados": 0
+    },
+    {
+      "name": "ARH. ACUERDO TRANSACCIONAL(INCIDENTE)",
+      "recibidosAsignados": 1,
+      "reingresados": 0
+    }
+  ],
+  "metadata": {
+    "csvFileName": "ME_J02_SEC_1_202402_CONF - Inicios.csv",
+    "importedAt": "2025-10-23T14:04:22.358Z"
+  }
+}

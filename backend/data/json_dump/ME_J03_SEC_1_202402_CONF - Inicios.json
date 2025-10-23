@@ -1,0 +1,71 @@
+{
+  "context": {
+    "dependencia": "JUZGADO FEDERAL DE PRIMERA INSTANCIA DE LA SEGURIDAD SOCIAL Nº 3 - SECRETARÍA Nº 1",
+    "dependenciaAbreviada": "J3-SEC",
+    "periodo": "202402",
+    "anio": 2024,
+    "mes": 2,
+    "fechaEstadistica": "2024-02-29"
+  },
+  "totals": {
+    "expedientesExistentes": 4978,
+    "expedientesRecibidos": 220,
+    "expedientesReingresados": 0
+  },
+  "caseTypes": [
+    {
+      "name": "1.Amparo por Mora de la Administración",
+      "recibidosAsignados": 3,
+      "reingresados": 0
+    },
+    {
+      "name": "A.Jubilación y retiro por Invalidez",
+      "recibidosAsignados": 1,
+      "reingresados": 0
+    },
+    {
+      "name": "3.Pensiones",
+      "recibidosAsignados": 6,
+      "reingresados": 0
+    },
+    {
+      "name": "C.Prestaciones Varias",
+      "recibidosAsignados": 1,
+      "reingresados": 0
+    },
+    {
+      "name": "11.Reajustes Varios",
+      "recibidosAsignados": 153,
+      "reingresados": 0
+    },
+    {
+      "name": "13.Amparos y Sumarisimos",
+      "recibidosAsignados": 16,
+      "reingresados": 0
+    },
+    {
+      "name": "14.Medidas Cautelares",
+      "recibidosAsignados": 1,
+      "reingresados": 0
+    },
+    {
+      "name": "17.Personal Militar y Civil de las FF.AA.y de Seguridad",
+      "recibidosAsignados": 20,
+      "reingresados": 0
+    },
+    {
+      "name": "37.Acción Meramente Declarativa",
+      "recibidosAsignados": 17,
+      "reingresados": 0
+    },
+    {
+      "name": "40.Inconstitucionalidades Varias",
+      "recibidosAsignados": 2,
+      "reingresados": 0
+    }
+  ],
+  "metadata": {
+    "csvFileName": "ME_J03_SEC_1_202402_CONF - Inicios.csv",
+    "importedAt": "2025-10-23T14:04:22.363Z"
+  }
+}
