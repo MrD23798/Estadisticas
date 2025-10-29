@@ -3,10 +3,15 @@ import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import compress from '@fastify/compress';
 import { config } from './config';
-import { initializeDatabase } from './config/database';
-import { estadisticasRoutes } from './routes/estadisticas.routes';
-import { legacyStatsRoutes } from './routes/legacy-stats.routes';
-import adminRoutes from './routes/admin.routes';
+import { initializeDatabase, closeDatabase, checkDatabaseHealth, getDatabaseInfo } from './config/database';
+import { fastifyTRPCPlugin } from '@trpc/server/adapters/fastify';
+import { createContext } from './trpc/context';
+import { appRouter } from './trpc/routers';
+
+// --- ¡YA NO NECESITAS IMPORTAR LAS RUTAS REST ANTIGUAS! ---
+// import { estadisticasRoutes } from './routes/estadisticas.routes'; // <-- ELIMINADO
+// import { legacyStatsRoutes } from './routes/legacy-stats.routes'; // <-- ELIMINADO
+// import adminRoutes from './routes/admin.routes'; // <-- ELIMINADO
 
 export async function buildApp(): Promise<FastifyInstance> {
   // Crear instancia de Fastify
@@ -47,18 +52,24 @@ export async function buildApp(): Promise<FastifyInstance> {
   // Inicializar base de datos
   await initializeDatabase();
 
-  // Registrar rutas principales
-  await app.register(estadisticasRoutes, { prefix: '/api' });
-  
-  // Registrar rutas legacy para compatibilidad
-  await app.register(legacyStatsRoutes, { prefix: '/api' });
+  // --- REGISTRAR EL PLUGIN DE TRPC ---
+  await app.register(fastifyTRPCPlugin, {
+    prefix: config.trpc.endpoint, // '/trpc'
+    trpcOptions: { 
+      router: appRouter, 
+      createContext 
+    },
+  });
+  // --- FIN REGISTRO TRPC ---
 
-  // Registrar rutas de administración
-  await app.register(adminRoutes, { prefix: '/api/admin' });
+  // --- ¡YA NO NECESITAS REGISTRAR LAS RUTAS REST ANTIGUAS! ---
+  // await app.register(estadisticasRoutes, { prefix: '/api' }); // <-- ELIMINADO
+  // await app.register(legacyStatsRoutes, { prefix: '/api' }); // <-- ELIMINADO
+  // await app.register(adminRoutes, { prefix: '/api/admin' }); // <-- ELIMINADO
 
-  // Endpoint de salud
+  // Endpoint de salud (se mantiene)
   app.get('/health', async (request, reply) => {
-    const { checkDatabaseHealth, getDatabaseInfo } = await import('./config/database');
+    // const { checkDatabaseHealth, getDatabaseInfo } = await import('./config/database'); // Moved import to top
     
     try {
       const dbHealth = await checkDatabaseHealth();
@@ -89,7 +100,7 @@ export async function buildApp(): Promise<FastifyInstance> {
     }
   });
 
-  // Endpoint de información
+  // Endpoint de información (se mantiene)
   app.get('/info', async (request, reply) => {
     return reply.send({
       name: 'Estadísticas Backend API',
@@ -100,7 +111,7 @@ export async function buildApp(): Promise<FastifyInstance> {
       endpoints: {
         health: '/health',
         info: '/info',
-        api: '/api',
+        // api: '/api', // <-- Puedes eliminar esta línea si ya no existe '/api'
         trpc: config.trpc.endpoint,
       },
       features: {
@@ -113,16 +124,17 @@ export async function buildApp(): Promise<FastifyInstance> {
     });
   });
 
-  // Manejo de errores global
+  // Manejo de errores global (se mantiene)
   app.setErrorHandler(async (error, request, reply) => {
     app.log.error(error);
 
-    // Error de validación
-    if (error.validation) {
+    const errAny = error as any;
+    // Error de validación (podría venir de Zod via tRPC)
+    if (errAny?.validation || errAny?.code === 'BAD_REQUEST' || (errAny?.cause && errAny?.cause.name === 'ZodError')) {
       return reply.code(400).send({
         error: 'Validation Error',
         message: 'Los datos enviados no son válidos',
-        details: error.validation,
+        details: errAny?.validation || errAny?.cause?.issues, // Mostrar issues de Zod si existen
         timestamp: new Date().toISOString(),
       });
     }
@@ -135,6 +147,18 @@ export async function buildApp(): Promise<FastifyInstance> {
         timestamp: new Date().toISOString(),
       });
     }
+    
+    // Errores específicos de tRPC (NOT_FOUND, UNAUTHORIZED, etc.)
+    // El adaptador fastifyTRPCPlugin debería manejarlos, pero puedes añadir lógica específica si quieres
+    if (errAny?.code && typeof errAny.code === 'string' && errAny.code in httpStatusMap) {
+       const statusCode = httpStatusMap[errAny.code as keyof typeof httpStatusMap];
+       return reply.code(statusCode).send({
+         error: errAny.code,
+         message: errAny.message,
+         timestamp: new Date().toISOString(),
+       });
+    }
+
 
     // Error interno del servidor
     return reply.code(500).send({
@@ -144,22 +168,21 @@ export async function buildApp(): Promise<FastifyInstance> {
     });
   });
 
-  // Handler para rutas no encontradas
+  // Handler para rutas no encontradas (se mantiene, pero ajusta las rutas disponibles)
   app.setNotFoundHandler(async (request, reply) => {
     return reply.code(404).send({
       error: 'Not Found',
       message: `Ruta ${request.url} no encontrada`,
-      availableRoutes: ['/health', '/info', '/api'],
+      availableRoutes: ['/health', '/info', config.trpc.endpoint], // <-- Rutas actualizadas
       timestamp: new Date().toISOString(),
     });
   });
 
-  // Hook para logging de requests
+  // Hooks (se mantienen)
   app.addHook('onRequest', async (request, reply) => {
     app.log.info(`${request.method} ${request.url}`);
   });
 
-  // Hook para timing de responses
   app.addHook('onResponse', async (request, reply) => {
     app.log.info(`${request.method} ${request.url} - ${reply.statusCode} - ${reply.getResponseTime()}ms`);
   });
@@ -167,10 +190,31 @@ export async function buildApp(): Promise<FastifyInstance> {
   return app;
 }
 
-// Función para cerrar la aplicación limpiamente
+// Map tRPC error codes to HTTP status codes for better error handling
+const httpStatusMap = {
+  PARSE_ERROR: 400,
+  BAD_REQUEST: 400,
+  INTERNAL_SERVER_ERROR: 500,
+  NOT_IMPLEMENTED: 501,
+  UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
+  NOT_FOUND: 404,
+  METHOD_NOT_SUPPORTED: 405,
+  TIMEOUT: 408,
+  CONFLICT: 409,
+  PRECONDITION_FAILED: 412,
+  PAYLOAD_TOO_LARGE: 413,
+  UNSUPPORTED_MEDIA_TYPE: 415,
+  UNPROCESSABLE_CONTENT: 422,
+  TOO_MANY_REQUESTS: 429,
+  CLIENT_CLOSED_REQUEST: 499,
+};
+
+
+// Función para cerrar la aplicación limpiamente (se mantiene)
 export async function closeApp(app: FastifyInstance) {
   try {
-    const { closeDatabase } = await import('./config/database');
+    // const { closeDatabase } = await import('./config/database'); // Moved import to top
     
     app.log.info('📴 Cerrando aplicación...');
     
