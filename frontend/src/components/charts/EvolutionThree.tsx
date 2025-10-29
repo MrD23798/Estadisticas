@@ -5,7 +5,8 @@ import {
   Line, 
   Sphere, 
   Html,
-  Environment
+  Environment,
+  Lightformer
 } from '@react-three/drei';
 import * as THREE from 'three';
 import { motion } from 'framer-motion';
@@ -342,7 +343,7 @@ const Statistics3D: React.FC<{
     <group position={[0, 4, -2]}>
       {/* Máximo */}
       <StatBox
-        position={[-3, 0, 0]}
+        position={[-4.5, 0, 0]}
         color="#3b82f6"
         emissiveColor="#1e40af"
         value={stats.max}
@@ -351,7 +352,7 @@ const Statistics3D: React.FC<{
 
       {/* Mínimo */}
       <StatBox
-        position={[-1, 0, 0]}
+        position={[-1.5, 0, 0]}
         color="#10b981"
         emissiveColor="#059669"
         value={stats.min}
@@ -360,7 +361,7 @@ const Statistics3D: React.FC<{
 
       {/* Promedio */}
       <StatBox
-        position={[1, 0, 0]}
+        position={[1.5, 0, 0]}
         color="#8b5cf6"
         emissiveColor="#7c3aed"
         value={stats.avg}
@@ -369,7 +370,7 @@ const Statistics3D: React.FC<{
 
       {/* Total */}
       <StatBox
-        position={[3, 0, 0]}
+        position={[4.5, 0, 0]}
         color="#f59e0b"
         emissiveColor="#d97706"
         value={stats.total}
@@ -628,7 +629,7 @@ const EvolutionThree: React.FC<EvolutionThreeProps> = ({
         shadows
         gl={{ antialias: true, alpha: true }}
       >
-        <Suspense fallback={<LoadingScene />}>
+        <Suspense fallback={<LoadingScene />}> 
           <Scene 
             processedData={processedData}
             dependency={dependency}
@@ -638,7 +639,12 @@ const EvolutionThree: React.FC<EvolutionThreeProps> = ({
             objectType={objectType}
             title={title}
           />
-          <Environment preset="night" background={false} />
+          {/* Reemplazamos el preset remoto por un entorno procedimental local para evitar 429 */}
+          <Environment background={false} resolution={256}> 
+            <Lightformer intensity={1.2} color="#ffffff" position={[0, 5, -10]} scale={10} />
+            <Lightformer intensity={0.7} color="#ffddaa" position={[-5, 2, 2]} scale={5} />
+            <Lightformer intensity={0.7} color="#aaccff" position={[5, 2, -2]} scale={5} />
+          </Environment>
         </Suspense>
       </Canvas>
       

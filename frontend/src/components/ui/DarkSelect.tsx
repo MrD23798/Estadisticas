@@ -30,15 +30,61 @@ const DarkSelect: React.FC<DarkSelectProps> = ({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { isDark } = useTheme();
 
-  // Filtrar opciones basado en el término de búsqueda
+  // --- Helpers para ordenamiento lógico ---
+  const normalizeText = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const getNumberFromLabel = (text: string): number | null => {
+    const patterns = [
+      /SALA\s+(\d+)/i,
+      /JUZGADO.*?(\d+)/i,
+      /SOCIAL\s+(\d+)/i,
+      /TRIBUTARIA\s+(\d+)/i
+    ];
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (match) return parseInt(match[1], 10);
+    }
+    return null;
+  };
+  // Orden de meses (para ordenar cronológicamente)
+  const MONTHS_ORDER = [
+    'Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'
+  ];
+  const getMonthIndex = (label: string): number => {
+    const i = MONTHS_ORDER.findIndex(m => normalizeText(m) === normalizeText(label));
+    return i; // -1 si no es un mes reconocido
+  };
+  const compareOptions = (a: { label: string; value?: string }, b: { label: string; value?: string }) => {
+    // Mantener placeholders (value vacío) al principio
+    if (a.value === '' && b.value !== '') return -1;
+    if (a.value !== '' && b.value === '') return 1;
+
+    // Primero, si hay números (para juzgados/salas), ordenar por número
+    const na = getNumberFromLabel(a.label);
+    const nb = getNumberFromLabel(b.label);
+    if (na !== null && nb !== null) return na - nb;
+    if (na !== null && nb === null) return -1;
+    if (na === null && nb !== null) return 1;
+
+    // Luego, si son meses, ordenar cronológicamente
+    const ma = getMonthIndex(a.label);
+    const mb = getMonthIndex(b.label);
+    if (ma !== -1 && mb !== -1) return ma - mb;
+    if (ma !== -1 && mb === -1) return -1;
+    if (ma === -1 && mb !== -1) return 1;
+
+    // Por último, ordenar alfabéticamente (acento-insensible)
+    return normalizeText(a.label).localeCompare(normalizeText(b.label), 'es', { sensitivity: 'base' });
+  };
+
+  // Filtrar y ordenar opciones basado en el término de búsqueda
   useEffect(() => {
     if (searchable && searchTerm) {
       const filtered = options.filter(option =>
         option.label.toLowerCase().includes(searchTerm.toLowerCase())
       );
-      setFilteredOptions(filtered);
+      setFilteredOptions([...filtered].sort(compareOptions));
     } else {
-      setFilteredOptions(options);
+      setFilteredOptions([...options].sort(compareOptions));
     }
   }, [searchTerm, options, searchable]);
 
@@ -243,7 +289,7 @@ const DarkSelect: React.FC<DarkSelectProps> = ({
                 </motion.div>
               ) : (
                 filteredOptions.map((option, index) => {
-                  // Función para extraer el número de juzgado/sala
+                  // Función para extraer el número de juzgado/sala (solo para mostrar)
                   const extractNumber = (text: string): string => {
                     const patterns = [
                       /SALA\s+(\d+)/i,
