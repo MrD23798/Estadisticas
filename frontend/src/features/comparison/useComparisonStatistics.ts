@@ -1,31 +1,28 @@
-import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '../../api/apiClient';
+import { trpc } from '../../trpc/client';
 
 // 🧠 Hook para estadísticas de comparación usando React Query
 export const useComparisonStatistics = () => {
   // Query para obtener dependencias disponibles (compartido)
   const {
-    data: dependencias = [],
+    data: dependenciasResp,
     isLoading: loadingDependencias,
     error: errorDependencias,
-  } = useQuery({
-    queryKey: ['dependencias'],
-    queryFn: () => apiClient.getDependenciasDisponibles(),
+  } = trpc.estadisticas.getDependencias.useQuery(undefined, {
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });
+  const dependencias = dependenciasResp?.dependencias ?? [];
 
   // Query para obtener períodos disponibles (compartido)
   const {
-    data: periodos = [],
+    data: periodosResp,
     isLoading: loadingPeriodos,
     error: errorPeriodos,
-  } = useQuery({
-    queryKey: ['periodos'],
-    queryFn: () => apiClient.getPeriodosDisponibles(),
+  } = trpc.estadisticas.getPeriodos.useQuery(undefined, {
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });
+  const periodos = periodosResp?.periodos ?? [];
 
   // Función para comparar dependencias
   const useComparacion = (
@@ -33,13 +30,14 @@ export const useComparisonStatistics = () => {
     periodo: string,
     metricas: string[]
   ) => {
-    return useQuery({
-      queryKey: ['comparacion', dependencias, periodo, metricas],
-      queryFn: () => apiClient.compararDependencias({ dependencias, periodo, metricas }),
-      enabled: dependencias.length > 0 && !!periodo && metricas.length > 0,
-      staleTime: 2 * 60 * 1000,
-      gcTime: 5 * 60 * 1000,
-    });
+    return trpc.estadisticas.compararDependencias.useQuery(
+      { dependencias, periodo, metricas, buscarEnGoogleSheets: true },
+      {
+        enabled: dependencias.length > 0 && !!periodo && metricas.length > 0,
+        staleTime: 2 * 60 * 1000,
+        gcTime: 5 * 60 * 1000,
+      }
+    );
   };
 
   // Función para obtener top dependencias
@@ -49,13 +47,14 @@ export const useComparisonStatistics = () => {
     limite = 10,
     orden: 'asc' | 'desc' = 'desc'
   ) => {
-    return useQuery({
-      queryKey: ['top-dependencias', periodo, metrica, limite, orden],
-      queryFn: () => apiClient.getTopDependencias(periodo, metrica, { limite, orden }),
-      enabled: !!periodo && !!metrica,
-      staleTime: 2 * 60 * 1000,
-      gcTime: 5 * 60 * 1000,
-    });
+    return trpc.estadisticas.getTopDependencias.useQuery(
+      { periodo, metrica: metrica as 'existentes' | 'recibidos' | 'reingresados', limite, orden },
+      {
+        enabled: !!periodo && !!metrica,
+        staleTime: 2 * 60 * 1000,
+        gcTime: 5 * 60 * 1000,
+      }
+    );
   };
 
   return {

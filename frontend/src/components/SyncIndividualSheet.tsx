@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { apiClient } from '../api/apiClient';
 
 interface SyncFormData {
   sheetId: string;
@@ -10,7 +9,8 @@ interface SyncFormData {
 
 export function SyncIndividualSheet() {
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<SyncFormData>();
-  const [result, setResult] = useState<any>(null);
+  type SyncResult = { success?: boolean; message?: string; registrosInsertados?: number } | null;
+  const [result, setResult] = useState<SyncResult>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [sheetStatus, setSheetStatus] = useState<{
@@ -25,15 +25,19 @@ export function SyncIndividualSheet() {
     
     setIsLoading(true);
     try {
-      const response = await apiClient.verificarEstadoHoja(sheetId);
+      // No hay endpoint tRPC explícito para incremental en el backend actual.
+      // Consultamos /health para mantener UX mínima; puedes cambiar a un proc tRPC luego.
+      const response = await fetch(`/api/sync/sheet/${encodeURIComponent(sheetId)}/status`);
+      const json = await response.json();
       setSheetStatus({
         checked: true,
-        isSynced: response.isSynced,
-        message: response.message
+        isSynced: json?.isSynced,
+        message: json?.message || 'Consulta realizada'
       });
       setError(null);
-    } catch (error: any) {
-      setError(`Error al verificar la hoja: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      setError(`Error al verificar la hoja: ${msg}`);
       setSheetStatus({ checked: false });
     } finally {
       setIsLoading(false);
@@ -47,15 +51,22 @@ export function SyncIndividualSheet() {
     setError(null);
     
     try {
-      const response = await apiClient.sincronizarHojaIndividual(data);
-      setResult(response);
+      // No hay proc tRPC aún para sync individual; hacemos POST directo temporal.
+      const resp = await fetch('/api/sync/sheet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const json = await resp.json();
+      setResult(json);
       
-      if (response.success) {
+      if (json.success) {
         reset();  // Limpiar el formulario si fue exitoso
         setSheetStatus({ checked: false });
       }
-    } catch (error: any) {
-      setError(`Error: ${error.message || 'Error desconocido'}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Error desconocido';
+      setError(`Error: ${msg}`);
     } finally {
       setIsLoading(false);
     }

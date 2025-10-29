@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { checkAPIAvailability } from '../api/apiClient';
+import { resolveApiBaseUrl } from '../trpc/client';
 
 type ApiStatusInfo = {
   available: boolean;
@@ -29,7 +29,17 @@ const ApiStatus = () => {
         setStatus('checking');
         setMessage('Comprobando conexión con la API...');
         
-        const result = await checkAPIAvailability();
+        // Reemplazo simple: consulta al endpoint /health directamente
+        const response = await fetch(`${resolveApiBaseUrl()}/health`, { credentials: 'include' });
+        const data = await response.json();
+        const result = {
+          available: data?.status === 'ok',
+          message: data?.status,
+          version: data?.version,
+          environment: data?.environment,
+          database: data?.database,
+          features: data?.features,
+        } as ApiStatusInfo;
         setInfo(result);
         
         if (result.available) {

@@ -1,76 +1,63 @@
-import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '../../api/apiClient';
+import { trpc } from '../../trpc/client';
 
 // 🧠 Hook para estadísticas de evolución temporal usando React Query
 export const useEvolutionStatistics = () => {
   // Query para obtener dependencias disponibles (compartido)
   const {
-    data: dependencias = [],
+    data: dependenciasResp,
     isLoading: loadingDependencias,
     error: errorDependencias,
-  } = useQuery({
-    queryKey: ['dependencias'],
-    queryFn: () => apiClient.getDependenciasDisponibles(),
+  } = trpc.estadisticas.getDependencias.useQuery(undefined, {
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });
+  const dependencias = dependenciasResp?.dependencias ?? [];
 
   // Query para obtener períodos disponibles (compartido)
   const {
-    data: periodos = [],
+    data: periodosResp,
     isLoading: loadingPeriodos,
     error: errorPeriodos,
-  } = useQuery({
-    queryKey: ['periodos'],
-    queryFn: () => apiClient.getPeriodosDisponibles(),
+  } = trpc.estadisticas.getPeriodos.useQuery(undefined, {
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });
+  const periodos = periodosResp?.periodos ?? [];
 
   // Función para obtener evolución temporal
   const useEvolucion = (
     dependencias: string[] | undefined,
-    metrica: string,
+    metrica: 'existentes' | 'recibidos' | 'reingresados',
     periodoInicio: string,
     periodoFin: string,
     agruparPor?: string
   ) => {
-    return useQuery({
-      queryKey: ['evolucion', dependencias, metrica, periodoInicio, periodoFin, agruparPor],
-      queryFn: () => apiClient.getEvolucion({
-        dependencias,
-        metrica,
-        periodoInicio,
-        periodoFin,
-        agruparPor
-      }),
-      enabled: !!metrica && !!periodoInicio && !!periodoFin,
-      staleTime: 2 * 60 * 1000,
-      gcTime: 5 * 60 * 1000,
-    });
+    return trpc.estadisticas.getEvolucion.useQuery(
+      { dependencias, metrica, periodoInicio, periodoFin, agruparPor, buscarEnGoogleSheets: true },
+      {
+        enabled: !!metrica && !!periodoInicio && !!periodoFin,
+        staleTime: 2 * 60 * 1000,
+        gcTime: 5 * 60 * 1000,
+      }
+    );
   };
 
   // Función para obtener timeline data
   const useTimelineData = (
     dependencias: string[] | undefined,
-    metrica: string,
+    metrica: 'existentes' | 'recibidos' | 'reingresados',
     periodoInicio: string,
     periodoFin: string,
     agruparPor?: string
   ) => {
-    return useQuery({
-      queryKey: ['timeline', dependencias, metrica, periodoInicio, periodoFin, agruparPor],
-      queryFn: () => apiClient.getTimelineData({
-        dependencias,
-        metrica,
-        periodoInicio,
-        periodoFin,
-        agruparPor
-      }),
-      enabled: !!metrica && !!periodoInicio && !!periodoFin,
-      staleTime: 2 * 60 * 1000,
-      gcTime: 5 * 60 * 1000,
-    });
+    return trpc.estadisticas.getTimeline.useQuery(
+      { dependencias, metrica, periodoInicio, periodoFin, agruparPor },
+      {
+        enabled: !!metrica && !!periodoInicio && !!periodoFin,
+        staleTime: 2 * 60 * 1000,
+        gcTime: 5 * 60 * 1000,
+      }
+    );
   };
 
   return {
